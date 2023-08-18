@@ -13,18 +13,20 @@ static int device_open(struct inode *, struct file *);
 static int device_release(struct inode *, struct file *);
 static ssize_t device_read(struct file *, char __user *, size_t, loff_t *);
 static ssize_t device_write(struct file *, const char __user *, size_t,
-                            loff_t *);
+			    loff_t *);
 
 #define SUCCESS 0
-#define DEVICE_NAME "screaming" /* Dev name as it appears in /proc/devices   */
+#define DEVICE_NAME "screaming"	/* Dev name as it appears in /proc/devices   */
 #define SEQUENCE_LENGTH 8
 
-static char *scream_caps = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
-static char *scream_lower = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+static char *scream_caps =
+    "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
+static char *scream_lower =
+    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 
 /* Global variables are declared as static, so are global within the file. */
 
-static int major; /* major number assigned to our device driver */
+static int major;		/* major number assigned to our device driver */
 
 static struct class *cls;
 
@@ -48,8 +50,8 @@ static int __init chardev_init(void)
     major = register_chrdev(0, DEVICE_NAME, &chardev_fops);
 
     if (major < 0) {
-        pr_alert("Registering char device failed with %d\n", major);
-        return major;
+	pr_alert("Registering char device failed with %d\n", major);
+	return major;
     }
 
     pr_info("I was assigned major number %d.\n", major);
@@ -101,31 +103,32 @@ static int device_release(struct inode *inode, struct file *file)
 /* Called when a process, which already opened the dev file, attempts to
  * read from it.
  */
-static ssize_t device_read(struct file *filp, /* see include/linux/fs.h   */
-                           char __user *buffer, /* buffer to fill with data */
-                           size_t length, /* length of the buffer     */
-                           loff_t *offset)
+static ssize_t device_read(struct file *filp,	/* see include/linux/fs.h   */
+			   char __user * buffer,	/* buffer to fill with data */
+			   size_t length,	/* length of the buffer     */
+			   loff_t * offset)
 {
     char *source = scream_caps;
     int current_sequence_index = 0;
     long copied = 0, copy_len = 0, failed = 0;
 
     while (copied < length) {
-      copy_len = random_sequence[current_sequence_index];
-      if ((copied + copy_len) > length) {
-	copy_len = length - copied;
-      }
+	copy_len = random_sequence[current_sequence_index];
+	if ((copied + copy_len) > length) {
+	    copy_len = length - copied;
+	}
 
-      failed = copy_to_user(buffer, source, copy_len);
-      if (failed > 0) {
-        pr_info("Attempted %ld, failed %ld\n", copy_len, failed);
-	return -EFAULT;
-      }
+	failed = copy_to_user(buffer, source, copy_len);
+	if (failed > 0) {
+	    pr_info("Attempted %ld, failed %ld\n", copy_len, failed);
+	    return -EFAULT;
+	}
 
-      buffer += copy_len;
-      current_sequence_index = (current_sequence_index + 1) % SEQUENCE_LENGTH;
-      source = source == scream_caps ? scream_lower : scream_caps;
-      copied = copied + copy_len;
+	buffer += copy_len;
+	current_sequence_index =
+	    (current_sequence_index + 1) % SEQUENCE_LENGTH;
+	source = source == scream_caps ? scream_lower : scream_caps;
+	copied = copied + copy_len;
     }
 
     /* Most read functions return the number of bytes put into the buffer. */
@@ -133,8 +136,9 @@ static ssize_t device_read(struct file *filp, /* see include/linux/fs.h   */
 }
 
 /* Called when a process writes to dev file: echo "hi" > /dev/hello */
-static ssize_t device_write(struct file *filp, const char __user *buff,
-                            size_t len, loff_t *off)
+static ssize_t
+device_write(struct file *filp, const char __user * buff,
+	     size_t len, loff_t * off)
 {
     pr_alert("Sorry, this operation is not supported.\n");
     return -EINVAL;
