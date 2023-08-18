@@ -17,6 +17,10 @@ static ssize_t device_write(struct file *, const char __user *, size_t,
 
 #define SUCCESS 0
 #define DEVICE_NAME "screaming" /* Dev name as it appears in /proc/devices   */
+#define SEQUENCE_LENGTH 8
+
+static char *scream_caps = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
+static char *scream_lower = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 
 /* Global variables are declared as static, so are global within the file. */
 
@@ -24,7 +28,7 @@ static int major; /* major number assigned to our device driver */
 
 static struct class *cls;
 
-static char random_sequence[4];
+static char random_sequence[SEQUENCE_LENGTH];
 
 static struct file_operations chardev_fops = {
     .read = device_read,
@@ -102,20 +106,26 @@ static ssize_t device_read(struct file *filp, /* see include/linux/fs.h   */
                            size_t length, /* length of the buffer     */
                            loff_t *offset)
 {
-    int i;
-    char current_char = 'A';
+    char *source = scream_caps;
     int current_sequence_index = 0;
-    int current_sequence_pos = 0;
+    long copied = 0, copy_len = 0, failed = 0;
 
-    for (i = 0; i < length; i++) {
-      put_user(current_char, buffer + i);
-      current_sequence_pos++;
-
-      if (current_sequence_pos > random_sequence[current_sequence_index]) {
-        current_sequence_pos = 0;
-	current_sequence_index = (current_sequence_index + 1) % 4;
-	current_char = current_char == 'A' ? 'a' : 'A';
+    while (copied < length) {
+      copy_len = random_sequence[current_sequence_index];
+      if ((copied + copy_len) > length) {
+	copy_len = length - copied;
       }
+
+      failed = copy_to_user(buffer, source, copy_len);
+      if (failed > 0) {
+        pr_info("Attempted %ld, failed %ld\n", copy_len, failed);
+	return -EFAULT;
+      }
+
+      buffer += copy_len;
+      current_sequence_index = (current_sequence_index + 1) % SEQUENCE_LENGTH;
+      source = source == scream_caps ? scream_lower : scream_caps;
+      copied = copied + copy_len;
     }
 
     /* Most read functions return the number of bytes put into the buffer. */
